@@ -1,0 +1,1158 @@
+
+R version 3.3.2 (2016-10-31) -- "Sincere Pumpkin Patch"
+Copyright (C) 2016 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin13.4.0 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> 
+> 
+> 
+> all_obs <- names(table(dat0$OBSERVER_ID))
+Error in table(dat0$OBSERVER_ID) : object 'dat0' not found
+> ###########################################################################
+> ###########################################################################
+> ###### CODE TO CALCULATE EXPERTISE SCORES OF EBIRD OBSERVERS
+> ###########################################################################
+> ###########################################################################
+> 
+> # created by: ali johnston
+> 
+> 
+> # load in required packages
+> library(dplyr)
+
+Attaching package: 'dplyr'
+
+The following objects are masked from 'package:stats':
+
+    filter, lag
+
+The following objects are masked from 'package:base':
+
+    intersect, setdiff, setequal, union
+
+> library(mgcv)
+Loading required package: nlme
+
+Attaching package: 'nlme'
+
+The following object is masked from 'package:dplyr':
+
+    collapse
+
+This is mgcv 1.8-15. For overview type 'help("mgcv-package")'.
+> 
+> 
+> # set parameters for whole script
+> data.tag <- "BCR23_2016"
+> 
+> 
+> # File directories in which to search for models and plot results:
+> data.root <- "data/"
+> data.folder <- paste(data.root, data.tag, "_data/", sep="")
+> 
+> # result.root <- "results/"
+> # result.folder <- paste(result.root, data.tag, "/", sep="")
+> # dir.create(result.folder, recursive=T)
+> 
+> # set working directory as overall folder
+> setwd("/Users/ali/Documents/REPOS/seasonal_occupancy")
+> 
+> 
+> # Source in relevant functions:
+> # source("code/functions/functions_ebird_occupancy.R")
+> # source("code/functions/functions_misc.R")
+> # source("code/functions/functions_create_prediction_dataframe.R")
+> 
+> 
+> 
+> 
+> ###########################################################################
+> ###########################################################################
+> ######   READ IN ALL SPECIES AND CALCULATE NO SPECIES PER CHECKLIST
+> ###########################################################################
+> ###########################################################################
+> 
+> 
+> dat_loc <- paste0(data.folder, "BCR23_All.Spp_erd.RData")
+> load(dat_loc)
+> 
+> # Convert abundances to presences
+> species_matrix <- erd$y
+> 
+> species_presence <- ifelse(species_matrix==0, 0, 1)
+> rm(species_matrix)
+> 
+> # count up total species on each list
+> total_species <- apply(species_presence, 1, sum)
+> rm(species_presence)
+> 
+> # combine total species with other covariates
+> covariates <- cbind(erd$X, total_species)
+> locations <- erd$locs
+> 
+> 
+> 
+> 
+> ###########################################################################
+> ###########################################################################
+> ###### FILTER CHECKLISTS TO KEEP ONLY THOSE THAT MEET GIVEN CRITERIA
+> ###########################################################################
+> ###########################################################################
+> 
+> 
+> # thresholds for max and min values of covariates
+> max_effort_hrs <- 5
+> max_distance_km <- 8.05
+> min_time <- 5
+> max_time <- 20 # (5.00-20.00 covers >98% of the dataset)
+> min_yr <- 2016
+> max_yr <- 2016
+> 
+> 
+> dat0 <- filter(covariates, EFFORT_HRS<=max_effort_hrs, EFFORT_DISTANCE_KM<=<, EFFORT_HRS<=max_effort_hrs, EFFORT_DISTANCE_KM<=m                        ax_distance_km, 
++                            TIME<=max_time, TIME>=min_time, YEAR<=max_yr, YE<  TIME<=max_time, TIME>=min_time, YEAR<=max_yr, YEA                        R>=min_yr)
+> 
+> 
+> 
+> 
+> 
+> ###########################################################################
+> ###########################################################################
+> ###### CALCULATE DERIVED VARIABLES
+> ###########################################################################
+> ###########################################################################
+> 
+> 
+> #####################################################################
+> ###  add sqrt of effort_hrs
+> dat0$EFFORT_HRS_sqrt <- sqrt(dat0$EFFORT_HRS)
+> 
+> 
+> #####################################################################
+> ###  calculate habitat diversity
+> 
+> # define function for GS
+> gini_simpson <- function(p) {1 - sum(p^2)}
+> 
+> # ensure that all proportions add up to 100 
+> lc_nos <- c(0:10, 12, 13, 16)
+> lc_names <- paste0("UMD_FS_C", lc_nos, "_1500_PLAND")
+> landcover_covs <- dat0[,c(lc_names)]
+> 
+> total_landcover <- apply(landcover_covs, 1, sum)
+> min_landcover <- min(total_landcover)
+> 
+> # minimum landcover is 100, so they are all ok. 
+> 
+> dat0$hab_div <- apply(landcover_covs/100, 1, gini_simpson)
+> 
+> 
+> 
+> 
+> # add in covariates:
+> dat0$OBSERVER_ID <- factor(dat0$OBSERVER_ID)
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> all_obs <- names(table(dat0$OBSERVER_ID))
+> test_obs <- sample(all_obs, 20, replace=FALSE)
+> test_obs
+ [1] "628948" "637362" "743386" "438480" "811168" "349034" "426350" "702593"
+ [9] "412187" "719338" "465963" "343833" "220391" "552926" "576333" "202960"
+[17] "812427" "546025" "755868" "821759"
+> 
+> remaining_obs <- all_obs[-which(all_obs %in% test_obs)]
+> length(all_obs)
+[1] 6206
+> 
+> length(remaining_obs)
+[1] 6186
+> 
+> 
+> ceiling(length(remaining_obs)/6)
+[1] 1031
+> 
+> 
+> all_obs <- names(table(dat0$OBSERVER_ID))
+> set.seed(181)
+> test_obs <- sample(all_obs, 20, replace=FALSE)
+> 
+> remaining_obs <- all_obs[-which(all_obs %in% test_obs)]
+> set.seed(187)
+> obs_cat <- sample(rep(1:6, ceiling(length(remaining_obs)/6)), size=length(r<, ceiling(length(remaining_obs)/6)), size=length(re                        maining_obs, replace=FALS<_obs)/6)), size=length(remaining_obs, replace=FALSE                        ))
+Error in length(remaining_obs, replace = FALSE) : 
+  2 arguments passed to 'length' which requires 1
+> obs_cat <- sample(rep(1:6, ceiling(length(remaining_obs)/6)), size=length(r<, ceiling(length(remaining_obs)/6)), size=length(re                        maining_obs), replace=FAL<_obs)/6)), size=length(remaining_obs), replace=FALS                        E)
+> head(obs_cat)
+[1] 3 3 3 5 2 5
+> 
+> 
+> 
+> 
+> # split remaining obs into 6 categories
+> set.seed(187)
+> obs_cat <- sample(rep(1:6, ceiling(length(remaining_obs)/6)), size=length(r<, ceiling(length(remaining_obs)/6)), size=length(re                        maining_obs), replace=FAL<_obs)/6)), size=length(remaining_obs), replace=FALS                        E)
+> 
+> obs_remaining_df <- data.frame(OBSERVER_ID=remaining_obs, group=obs_cat)
+> obs_test_df <- data.frame(OBSERVER_ID=test_obs, group==0)
+Error in data.frame(OBSERVER_ID = test_obs, group == 0) : 
+  object 'group' not found
+> 
+> obs_df <- rbind(obs_remaining_df, obs_test_df)
+Error in rbind(obs_remaining_df, obs_test_df) : 
+  object 'obs_test_df' not found
+> obs_remaining_df <- data.frame(OBSERVER_ID=remaining_obs, group=obs_cat)
+> obs_test_df <- data.frame(OBSERVER_ID=test_obs, group=0)
+> obs_df <- rbind(obs_remaining_df, obs_test_df)
+> head(obs_df)
+  OBSERVER_ID group
+1        1574     3
+2        1873     3
+3        2124     3
+4        2505     5
+5        2690     2
+6        2928     5
+> 
+> 
+> table(obs_df$group)
+
+   0    1    2    3    4    5    6 
+  20 1031 1031 1031 1031 1031 1031 
+> 
+> 
+> 1031*6
+[1] 6186
+> 
+> 
+> 
+> 
+> i <- 1
+> 
+>    obs_group <- obs_df$OBSERVER_ID[obs_df$group==i | obs_df$group==0]
+> head(obs_group)
+[1] 3931  13599 14774 18501 20174 20408
+6206 Levels: 100116 100435 100451 10060 100639 100810 100913 101227 ... 90912
+> 
+> length(obs_group)
+[1] 1051
+> 
+> 
+>    sub_dat <- filter(dat0, OBSERVER_ID %in% obs_group)
+> nrow(dat0)
+[1] 153404
+> 
+> nrow(sub_dat)
+[1] 27299
+> 
+> 
+> 
+>    sub_dat$OBSERVER_ID <- sub_dat$OBSERVER_ID[drop=TRUE]
+>    t1 <- Sys.time()
+>    m_group <- bam(total_species ~ EFFORT_HRS + EFFORT_HRS_sqrt 
++                         + UMD_FS_C0_1500_PLAND + UMD_FS_C1_1500_PLAND + UMD< UMD_FS_C0_1500_PLAND + UMD_FS_C1_1500_PLAND + UMD_                        FS_C2_1500_PLAND 
++                         + UMD_FS_C3_1500_PLAND + UMD_FS_C4_1500_PLAND + UMD< UMD_FS_C3_1500_PLAND + UMD_FS_C4_1500_PLAND + UMD_                        FS_C5_1500_PLAND
++                         + UMD_FS_C6_1500_PLAND + UMD_FS_C7_1500_PLAND + UMD< UMD_FS_C6_1500_PLAND + UMD_FS_C7_1500_PLAND + UMD_                        FS_C8_1500_PLAND 
++                         + UMD_FS_C9_1500_PLAND + UMD_FS_C10_1500_PLAND + UM< UMD_FS_C9_1500_PLAND + UMD_FS_C10_1500_PLAND + UMD                        _FS_C12_1500_PLAND
++                         + UMD_FS_C13_1500_PLAND + UMD_FS_C16_1500_PLAND + h< UMD_FS_C13_1500_PLAND + UMD_FS_C16_1500_PLAND + ha                        b_div
++                         + I.STATIONARY + EFFORT_DISTANCE_KM + NUMBER_OBSERV< I.STATIONARY + EFFORT_DISTANCE_KM + NUMBER_OBSERVE                        RS
++                         + s(DAY, bs="cc", k=10) + s(TIME, k=5) 
++                         + s(OBSERVER_ID, bs="re"), 
++                         # + s(OBSERVER_ID, EFFORT_HRS, bs="re"),
++                         data=sub_dat, family="poisson")
+>    t2 <- Sys.time()
+> 
+> 
+> 
+> no_per_group <- 300
+> no_groups <- ceiling(length(remaining_obs) / (no_per_group-length(test_obs)<th(remaining_obs) / (no_per_group-length(test_obs))                        )
+> 
+> 
+> 
+> # split remaining obs into n categories
+> set.seed(187)
+> obs_cat <- sample(rep(1:no_groups, no_per_group), size=length(remaining_obs<o_groups, no_per_group), size=length(remaining_obs)                        , replace=FALSE)
+> 
+> obs_remaining_df <- data.frame(OBSERVER_ID=remaining_obs, group=obs_cat)
+> obs_test_df <- data.frame(OBSERVER_ID=test_obs, group=0)
+> 
+> obs_df <- rbind(obs_remaining_df, obs_test_df)
+> no_groups
+[1] 23
+> 
+> 
+> 
+>    obs_group <- obs_df$OBSERVER_ID[obs_df$group==i | obs_df$group==0]
+> nrow(obs_group)
+NULL
+> 
+> 
+> 
+> nrow(obs_df)
+[1] 6206
+> 
+> table(obs_df$group)
+
+  0   1   2   3   4   5   6   7   8   9  10  11  12  13  14  15  16  17  18  19 
+ 20 270 272 260 269 271 266 271 268 271 268 269 271 265 269 264 258 278 271 274 
+ 20  21  22  23 
+278 266 276 261 
+> 
+> 
+> 
+> i <- 1
+> 
+>    obs_group <- obs_df$OBSERVER_ID[obs_df$group==i | obs_df$group==0]
+>    sub_dat <- filter(dat0, OBSERVER_ID %in% obs_group)
+>    sub_dat$OBSERVER_ID <- sub_dat$OBSERVER_ID[drop=TRUE]
+>    t1 <- Sys.time()
+>    m_group <- bam(total_species ~ EFFORT_HRS + EFFORT_HRS_sqrt 
++                         + UMD_FS_C0_1500_PLAND + UMD_FS_C1_1500_PLAND + UMD< UMD_FS_C0_1500_PLAND + UMD_FS_C1_1500_PLAND + UMD_                        FS_C2_1500_PLAND 
++                         + UMD_FS_C3_1500_PLAND + UMD_FS_C4_1500_PLAND + UMD< UMD_FS_C3_1500_PLAND + UMD_FS_C4_1500_PLAND + UMD_                        FS_C5_1500_PLAND
++                         + UMD_FS_C6_1500_PLAND + UMD_FS_C7_1500_PLAND + UMD< UMD_FS_C6_1500_PLAND + UMD_FS_C7_1500_PLAND + UMD_                        FS_C8_1500_PLAND 
++                         + UMD_FS_C9_1500_PLAND + UMD_FS_C10_1500_PLAND + UM< UMD_FS_C9_1500_PLAND + UMD_FS_C10_1500_PLAND + UMD                        _FS_C12_1500_PLAND
++                         + UMD_FS_C13_1500_PLAND + UMD_FS_C16_1500_PLAND + h< UMD_FS_C13_1500_PLAND + UMD_FS_C16_1500_PLAND + ha                        b_div
++                         + I.STATIONARY + EFFORT_DISTANCE_KM + NUMBER_OBSERV< I.STATIONARY + EFFORT_DISTANCE_KM + NUMBER_OBSERVE                        RS
++                         + s(DAY, bs="cc", k=10) + s(TIME, k=5) 
++                         + s(OBSERVER_ID, bs="re"), 
++                         # + s(OBSERVER_ID, EFFORT_HRS, bs="re"),
++                         data=sub_dat, family="poisson")
+>    t2 <- Sys.time()
+> 
+> 
+> 
+> summary(m_group)
+
+Family: poisson 
+Link function: log 
+
+Formula:
+total_species ~ EFFORT_HRS + EFFORT_HRS_sqrt + UMD_FS_C0_1500_PLAND + 
+    UMD_FS_C1_1500_PLAND + UMD_FS_C2_1500_PLAND + UMD_FS_C3_1500_PLAND + 
+    UMD_FS_C4_1500_PLAND + UMD_FS_C5_1500_PLAND + UMD_FS_C6_1500_PLAND + 
+    UMD_FS_C7_1500_PLAND + UMD_FS_C8_1500_PLAND + UMD_FS_C9_1500_PLAND + 
+    UMD_FS_C10_1500_PLAND + UMD_FS_C12_1500_PLAND + UMD_FS_C13_1500_PLAND + 
+    UMD_FS_C16_1500_PLAND + hab_div + I.STATIONARY + EFFORT_DISTANCE_KM + 
+    NUMBER_OBSERVERS + s(DAY, bs = "cc", k = 10) + s(TIME, k = 5) + 
+    s(OBSERVER_ID, bs = "re")
+
+Parametric coefficients:
+                        Estimate Std. Error z value Pr(>|z|)    
+(Intercept)            0.0000000  0.0000000      NA       NA    
+EFFORT_HRS            -0.5431641  0.0160478 -33.847  < 2e-16 ***
+EFFORT_HRS_sqrt        2.0254577  0.0377971  53.588  < 2e-16 ***
+UMD_FS_C0_1500_PLAND   0.0108588  0.0006453  16.828  < 2e-16 ***
+UMD_FS_C1_1500_PLAND   0.0094310  0.0009722   9.701  < 2e-16 ***
+UMD_FS_C2_1500_PLAND   0.0052650  0.0067525   0.780 0.435567    
+UMD_FS_C3_1500_PLAND   0.0121314  0.0016264   7.459 8.72e-14 ***
+UMD_FS_C4_1500_PLAND   0.0086187  0.0004720  18.261  < 2e-16 ***
+UMD_FS_C5_1500_PLAND   0.0091648  0.0005491  16.691  < 2e-16 ***
+UMD_FS_C6_1500_PLAND   0.0155093  0.0029854   5.195 2.05e-07 ***
+UMD_FS_C7_1500_PLAND   0.0130593  0.0008579  15.222  < 2e-16 ***
+UMD_FS_C8_1500_PLAND   0.0085987  0.0010657   8.069 7.11e-16 ***
+UMD_FS_C9_1500_PLAND   0.0081953  0.0039650   2.067 0.038740 *  
+UMD_FS_C10_1500_PLAND  0.0047380  0.0008217   5.766 8.10e-09 ***
+UMD_FS_C12_1500_PLAND  0.0101593  0.0003807  26.689  < 2e-16 ***
+UMD_FS_C13_1500_PLAND  0.0099018  0.0003868  25.598  < 2e-16 ***
+UMD_FS_C16_1500_PLAND  0.0071438  0.0039620   1.803 0.071380 .  
+hab_div                0.2863318  0.0292880   9.776  < 2e-16 ***
+I.STATIONARY          -0.1385673  0.0112144 -12.356  < 2e-16 ***
+EFFORT_DISTANCE_KM     0.0093060  0.0026967   3.451 0.000559 ***
+NUMBER_OBSERVERS       0.0054100  0.0009518   5.684 1.31e-08 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Approximate significance of smooth terms:
+                   edf  Ref.df  Chi.sq p-value    
+s(DAY)           7.643   8.000 57606.7  <2e-16 ***
+s(TIME)          3.893   3.992   248.5  <2e-16 ***
+s(OBSERVER_ID) 231.595 289.000  5493.2  <2e-16 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Rank: 322/323
+R-sq.(adj) =  0.777   Deviance explained = 78.7%
+fREML =  12486  Scale est. = 1         n = 6419
+> 
+> 
+> 
+> 
+>    t1 <- Sys.time()
+>    m_group <- bam(total_species ~ EFFORT_HRS + EFFORT_HRS_sqrt 
++                         + UMD_FS_C0_1500_PLAND + UMD_FS_C1_1500_PLAND + UMD< UMD_FS_C0_1500_PLAND + UMD_FS_C1_1500_PLAND + UMD_                        FS_C2_1500_PLAND 
++                         + UMD_FS_C3_1500_PLAND + UMD_FS_C4_1500_PLAND + UMD< UMD_FS_C3_1500_PLAND + UMD_FS_C4_1500_PLAND + UMD_                        FS_C5_1500_PLAND
++                         + UMD_FS_C6_1500_PLAND + UMD_FS_C7_1500_PLAND + UMD< UMD_FS_C6_1500_PLAND + UMD_FS_C7_1500_PLAND + UMD_                        FS_C8_1500_PLAND 
++                         + UMD_FS_C9_1500_PLAND + UMD_FS_C10_1500_PLAND + UM< UMD_FS_C9_1500_PLAND + UMD_FS_C10_1500_PLAND + UMD                        _FS_C12_1500_PLAND
++                         + UMD_FS_C13_1500_PLAND + UMD_FS_C16_1500_PLAND + h< UMD_FS_C13_1500_PLAND + UMD_FS_C16_1500_PLAND + ha                        b_div
++                         + I.STATIONARY + EFFORT_DISTANCE_KM + NUMBER_OBSERV< I.STATIONARY + EFFORT_DISTANCE_KM + NUMBER_OBSERVE                        RS
++                         + s(DAY, bs="cc", k=10) + s(TIME, k=5) 
++                         + s(OBSERVER_ID, bs="re"), 
++                         + s(OBSERVER_ID, EFFORT_HRS, bs="re"),
++                         data=sub_dat, family="poisson")
+Error in +s(OBSERVER_ID, EFFORT_HRS, bs = "re") : 
+  invalid argument to unary operator
+>    t2 <- Sys.time()
+> 
+>    t1 <- Sys.time()
+>    m_group <- bam(total_species ~ EFFORT_HRS + EFFORT_HRS_sqrt 
++                         + UMD_FS_C0_1500_PLAND + UMD_FS_C1_1500_PLAND + UMD< UMD_FS_C0_1500_PLAND + UMD_FS_C1_1500_PLAND + UMD_                        FS_C2_1500_PLAND 
++                         + UMD_FS_C3_1500_PLAND + UMD_FS_C4_1500_PLAND + UMD< UMD_FS_C3_1500_PLAND + UMD_FS_C4_1500_PLAND + UMD_                        FS_C5_1500_PLAND
++                         + UMD_FS_C6_1500_PLAND + UMD_FS_C7_1500_PLAND + UMD< UMD_FS_C6_1500_PLAND + UMD_FS_C7_1500_PLAND + UMD_                        FS_C8_1500_PLAND 
++                         + UMD_FS_C9_1500_PLAND + UMD_FS_C10_1500_PLAND + UM< UMD_FS_C9_1500_PLAND + UMD_FS_C10_1500_PLAND + UMD                        _FS_C12_1500_PLAND
++                         + UMD_FS_C13_1500_PLAND + UMD_FS_C16_1500_PLAND + h< UMD_FS_C13_1500_PLAND + UMD_FS_C16_1500_PLAND + ha                        b_div
++                         + I.STATIONARY + EFFORT_DISTANCE_KM + NUMBER_OBSERV< I.STATIONARY + EFFORT_DISTANCE_KM + NUMBER_OBSERVE                        RS
++                         + s(DAY, bs="cc", k=10) + s(TIME, k=5) 
++                         + s(OBSERVER_ID, bs="re") 
++                         + s(OBSERVER_ID, EFFORT_HRS, bs="re"),
++                         data=sub_dat, family="poisson")
+>    t2 <- Sys.time()
+> 
+> 
+> 
+> summary(m_group)
+
+Family: poisson 
+Link function: log 
+
+Formula:
+total_species ~ EFFORT_HRS + EFFORT_HRS_sqrt + UMD_FS_C0_1500_PLAND + 
+    UMD_FS_C1_1500_PLAND + UMD_FS_C2_1500_PLAND + UMD_FS_C3_1500_PLAND + 
+    UMD_FS_C4_1500_PLAND + UMD_FS_C5_1500_PLAND + UMD_FS_C6_1500_PLAND + 
+    UMD_FS_C7_1500_PLAND + UMD_FS_C8_1500_PLAND + UMD_FS_C9_1500_PLAND + 
+    UMD_FS_C10_1500_PLAND + UMD_FS_C12_1500_PLAND + UMD_FS_C13_1500_PLAND + 
+    UMD_FS_C16_1500_PLAND + hab_div + I.STATIONARY + EFFORT_DISTANCE_KM + 
+    NUMBER_OBSERVERS + s(DAY, bs = "cc", k = 10) + s(TIME, k = 5) + 
+    s(OBSERVER_ID, bs = "re") + s(OBSERVER_ID, EFFORT_HRS, bs = "re")
+
+Parametric coefficients:
+                        Estimate Std. Error z value Pr(>|z|)    
+(Intercept)            0.0000000  0.0000000      NA       NA    
+EFFORT_HRS            -0.5399331  0.0226494 -23.839  < 2e-16 ***
+EFFORT_HRS_sqrt        2.0188135  0.0434927  46.417  < 2e-16 ***
+UMD_FS_C0_1500_PLAND   0.0110001  0.0006754  16.286  < 2e-16 ***
+UMD_FS_C1_1500_PLAND   0.0092114  0.0009979   9.231  < 2e-16 ***
+UMD_FS_C2_1500_PLAND   0.0051259  0.0067690   0.757 0.448891    
+UMD_FS_C3_1500_PLAND   0.0097149  0.0017160   5.661 1.50e-08 ***
+UMD_FS_C4_1500_PLAND   0.0087097  0.0004968  17.531  < 2e-16 ***
+UMD_FS_C5_1500_PLAND   0.0097517  0.0005825  16.741  < 2e-16 ***
+UMD_FS_C6_1500_PLAND   0.0167625  0.0030785   5.445 5.18e-08 ***
+UMD_FS_C7_1500_PLAND   0.0128160  0.0008932  14.348  < 2e-16 ***
+UMD_FS_C8_1500_PLAND   0.0102102  0.0011085   9.211  < 2e-16 ***
+UMD_FS_C9_1500_PLAND   0.0082849  0.0040794   2.031 0.042261 *  
+UMD_FS_C10_1500_PLAND  0.0059818  0.0008574   6.977 3.02e-12 ***
+UMD_FS_C12_1500_PLAND  0.0103377  0.0004087  25.297  < 2e-16 ***
+UMD_FS_C13_1500_PLAND  0.0102261  0.0004156  24.608  < 2e-16 ***
+UMD_FS_C16_1500_PLAND  0.0139716  0.0039732   3.516 0.000437 ***
+hab_div                0.2419878  0.0301603   8.023 1.03e-15 ***
+I.STATIONARY          -0.1403528  0.0116446 -12.053  < 2e-16 ***
+EFFORT_DISTANCE_KM     0.0048193  0.0028543   1.688 0.091332 .  
+NUMBER_OBSERVERS       0.0043742  0.0010271   4.259 2.06e-05 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Approximate significance of smooth terms:
+                              edf  Ref.df  Chi.sq p-value    
+s(DAY)                      7.581   8.000 78936.5  <2e-16 ***
+s(TIME)                     3.858   3.986   225.2  <2e-16 ***
+s(OBSERVER_ID)            214.409 289.000 88112.2  <2e-16 ***
+s(OBSERVER_ID,EFFORT_HRS)  89.735 289.000 68966.9  <2e-16 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Rank: 612/613
+R-sq.(adj) =  0.793   Deviance explained = 79.9%
+fREML =  12284  Scale est. = 1         n = 6419
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> avg_landcover <- apply(landcover_covs, 2, mean)
+> length(avg_landcover)
+[1] 14
+> 
+> 
+> avg_landcover
+ UMD_FS_C0_1500_PLAND  UMD_FS_C1_1500_PLAND  UMD_FS_C2_1500_PLAND 
+           4.12239877            2.85474282            0.04966729 
+ UMD_FS_C3_1500_PLAND  UMD_FS_C4_1500_PLAND  UMD_FS_C5_1500_PLAND 
+           0.88098299            7.86406277            7.06579565 
+ UMD_FS_C6_1500_PLAND  UMD_FS_C7_1500_PLAND  UMD_FS_C8_1500_PLAND 
+           0.39063666            1.44944661            2.93999487 
+ UMD_FS_C9_1500_PLAND UMD_FS_C10_1500_PLAND UMD_FS_C12_1500_PLAND 
+           0.44567082            6.21781652           42.93672094 
+UMD_FS_C13_1500_PLAND UMD_FS_C16_1500_PLAND 
+          22.69738995            0.08467334 
+> 
+> 
+> 
+> avg_landcover <- as.data.frame(apply(landcover_covs, 2, mean))
+> avg_landcover
+                      apply(landcover_covs, 2, mean)
+UMD_FS_C0_1500_PLAND                      4.12239877
+UMD_FS_C1_1500_PLAND                      2.85474282
+UMD_FS_C2_1500_PLAND                      0.04966729
+UMD_FS_C3_1500_PLAND                      0.88098299
+UMD_FS_C4_1500_PLAND                      7.86406277
+UMD_FS_C5_1500_PLAND                      7.06579565
+UMD_FS_C6_1500_PLAND                      0.39063666
+UMD_FS_C7_1500_PLAND                      1.44944661
+UMD_FS_C8_1500_PLAND                      2.93999487
+UMD_FS_C9_1500_PLAND                      0.44567082
+UMD_FS_C10_1500_PLAND                     6.21781652
+UMD_FS_C12_1500_PLAND                    42.93672094
+UMD_FS_C13_1500_PLAND                    22.69738995
+UMD_FS_C16_1500_PLAND                     0.08467334
+> 
+> 
+> 
+> avg_landcover <- as.data.frame(t(apply(landcover_covs, 2, mean)))
+> avg_landcover
+  UMD_FS_C0_1500_PLAND UMD_FS_C1_1500_PLAND UMD_FS_C2_1500_PLAND
+1             4.122399             2.854743           0.04966729
+  UMD_FS_C3_1500_PLAND UMD_FS_C4_1500_PLAND UMD_FS_C5_1500_PLAND
+1             0.880983             7.864063             7.065796
+  UMD_FS_C6_1500_PLAND UMD_FS_C7_1500_PLAND UMD_FS_C8_1500_PLAND
+1            0.3906367             1.449447             2.939995
+  UMD_FS_C9_1500_PLAND UMD_FS_C10_1500_PLAND UMD_FS_C12_1500_PLAND
+1            0.4456708              6.217817              42.93672
+  UMD_FS_C13_1500_PLAND UMD_FS_C16_1500_PLAND
+1              22.69739            0.08467334
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> srd_path <- paste0(data.folder, "BCR23_SRD2016x1_srd.RData")
+> pred_df <- create_prediction_dataframe(srd_path=srd_path, var_alter="EFFORT<ion_dataframe(srd_path=srd_path, var_alter="EFFORT_                        HRS", 
++    min_var=0.05, max_var=5, by=0.05, DAY=259, modis.names=lc_names)
+Error: could not find function "create_prediction_dataframe"
+> source("code/functions/functions_create_prediction_dataframe.R")
+> pred_df <- create_prediction_dataframe(srd_path=srd_path, var_alter="EFFORT<ion_dataframe(srd_path=srd_path, var_alter="EFFORT_                        HRS", 
++    min_var=0.05, max_var=5, by=0.05, DAY=259, modis.names=lc_names)
+Error in if (modis.names) spatial_covs <- spatial_srd_modis(srd_path = srd_path) : 
+  argument is not interpretable as logical
+In addition: Warning message:
+In if (modis.names) spatial_covs <- spatial_srd_modis(srd_path = srd_path) :
+  the condition has length > 1 and only the first element will be used
+> 
+> srd_path=srd_path
+> var_alter="EFFORT_HRS", 
+Error: unexpected ',' in "var_alter="EFFORT_HRS","
+> min_var=0.05; max_var=5; by=0.05; DAY=259; modis.names=lc_names
+> srd_path=srd_path
+> var_alter="EFFORT_HRS"
+> min_var=0.05; max_var=5; by=0.05; DAY=259; modis.names=lc_names
+> 
+> 
+> r <- require(dplyr)
+> 
+> # read in spatial data frame
+> if(modis.names) spatial_covs <- spatial_srd_modis(srd_path=srd_path)
+Error in if (modis.names) spatial_covs <- spatial_srd_modis(srd_path = srd_path) : 
+  argument is not interpretable as logical
+In addition: Warning message:
+In if (modis.names) spatial_covs <- spatial_srd_modis(srd_path = srd_path) :
+  the condition has length > 1 and only the first element will be used
+> if(!modis.names) spatial_covs <- spatial_srd(srd_path=srd_path)
+Error in !modis.names : invalid argument type
+> 
+> modis.names
+ [1] "UMD_FS_C0_1500_PLAND"  "UMD_FS_C1_1500_PLAND"  "UMD_FS_C2_1500_PLAND" 
+ [4] "UMD_FS_C3_1500_PLAND"  "UMD_FS_C4_1500_PLAND"  "UMD_FS_C5_1500_PLAND" 
+ [7] "UMD_FS_C6_1500_PLAND"  "UMD_FS_C7_1500_PLAND"  "UMD_FS_C8_1500_PLAND" 
+[10] "UMD_FS_C9_1500_PLAND"  "UMD_FS_C10_1500_PLAND" "UMD_FS_C12_1500_PLAND"
+[13] "UMD_FS_C13_1500_PLAND" "UMD_FS_C16_1500_PLAND"
+> 
+> 
+> load(srd_path)
+> spatial_covs <- srd$X
+> spatial_covs$LONGITUDE <- srd$locs$x
+> spatial_covs$LATITUDE <- srd$locs$y
+> 
+> 
+> spatial_srd <- function(srd_path){
++ load(srd_path)
++ 
++ spatial_covs <- srd$X
++ spatial_covs$LONGITUDE <- srd$locs$x
++ spatial_covs$LATITUDE <- srd$locs$y
++ 
++ rm(srd)
++ 
++ return(spatial_covs)
++ }
+> 
+> 
+> 
+> modis.names <- FALSE
+> 
+> if(!modis.names) spatial_covs <- spatial_srd(srd_path=srd_path)
+> head(spatial_covs)
+      ELEV UMD_FS_C0_1500_PLAND UMD_FS_C1_1500_PLAND UMD_FS_C10_1500_PLAND
+1 363.9779                    0             0.000000              5.555556
+2 361.4415                    0             0.000000              0.000000
+3 362.8069                    0             0.000000              5.555556
+4 366.5482                    0             5.555556              0.000000
+5 365.2041                    0             2.777778              0.000000
+6 365.8368                    0             0.000000              0.000000
+  UMD_FS_C12_1500_PLAND UMD_FS_C13_1500_PLAND UMD_FS_C16_1500_PLAND
+1              61.11111                     0                     0
+2              88.88889                     0                     0
+3              58.33333                     0                     0
+4              13.88889                     0                     0
+5               0.00000                     0                     0
+6              97.22222                     0                     0
+  UMD_FS_C2_1500_PLAND UMD_FS_C3_1500_PLAND UMD_FS_C4_1500_PLAND
+1                    0             0.000000            19.444444
+2                    0             0.000000             0.000000
+3                    0             2.777778             2.777778
+4                    0             0.000000             0.000000
+5                    0             0.000000             0.000000
+6                    0             0.000000             0.000000
+  UMD_FS_C5_1500_PLAND UMD_FS_C6_1500_PLAND UMD_FS_C7_1500_PLAND
+1            11.111111                    0             0.000000
+2            11.111111                    0             0.000000
+3            19.444444                    0             0.000000
+4            72.222222                    0             2.777778
+5            91.666667                    0             2.777778
+6             2.777778                    0             0.000000
+  UMD_FS_C8_1500_PLAND UMD_FS_C9_1500_PLAND
+1             2.777778             0.000000
+2             0.000000             0.000000
+3             8.333333             2.777778
+4             5.555556             0.000000
+5             2.777778             0.000000
+6             0.000000             0.000000
+> 
+> 
+> 
+> # calculate spatial averages
+> spatial_avg <- create_spatial_avg(spatial_covs)
+> spatial_avg_df <- as.data.frame(t(spatial_avg))
+> 
+> spatial_avg_df
+      ELEV UMD_FS_C0_1500_PLAND UMD_FS_C1_1500_PLAND UMD_FS_C10_1500_PLAND
+1 296.5478             1.006261            0.8550603              4.304738
+  UMD_FS_C12_1500_PLAND UMD_FS_C13_1500_PLAND UMD_FS_C16_1500_PLAND
+1              70.50958              3.202318            0.08989814
+  UMD_FS_C2_1500_PLAND UMD_FS_C3_1500_PLAND UMD_FS_C4_1500_PLAND
+1           0.05700402             0.557518             9.252313
+  UMD_FS_C5_1500_PLAND UMD_FS_C6_1500_PLAND UMD_FS_C7_1500_PLAND
+1             6.879824            0.5480796            0.7444164
+  UMD_FS_C8_1500_PLAND UMD_FS_C9_1500_PLAND
+1             1.717596            0.2753948
+> 
+> # add in standardised checklist variables
+> day_spatial_std <- add_standardised_covs(srd_data=spatial_avg_df, ...)
+Error: '...' used in an incorrect context
+> 
+> day_spatial_std <- add_standardised_covs(srd_data=spatial_avg_df)
+> 
+> 
+> # add in DAY variable
+> day_spatial_std$DAY <- DAY
+> 
+> # remove the varying variable
+> w <- which(colnames(day_spatial_std)==var_alter)
+> std_var_slim <- day_spatial_std[,-c(w)]
+> 
+> # create a dataframe with a varying var_alter
+> var <- seq(min_var, max_var, by=by)
+> var_df <- data.frame(var=var)
+> colnames(var_df) <- var_alter
+> # join varying covariate with other standardised covariates
+> var_df$join <- 1
+> std_var_slim$join <- 1
+> if(r) pred_df <- left_join(var_df, std_var_slim, by="join")
+> if(!r) pred_df <- merge(var_df, std_var_slim, by="join", all.x=TRUE)
+> head(pred_df)
+  EFFORT_HRS join     ELEV UMD_FS_C0_1500_PLAND UMD_FS_C1_1500_PLAND
+1       0.05    1 296.5478             1.006261            0.8550603
+2       0.10    1 296.5478             1.006261            0.8550603
+3       0.15    1 296.5478             1.006261            0.8550603
+4       0.20    1 296.5478             1.006261            0.8550603
+5       0.25    1 296.5478             1.006261            0.8550603
+6       0.30    1 296.5478             1.006261            0.8550603
+  UMD_FS_C10_1500_PLAND UMD_FS_C12_1500_PLAND UMD_FS_C13_1500_PLAND
+1              4.304738              70.50958              3.202318
+2              4.304738              70.50958              3.202318
+3              4.304738              70.50958              3.202318
+4              4.304738              70.50958              3.202318
+5              4.304738              70.50958              3.202318
+6              4.304738              70.50958              3.202318
+  UMD_FS_C16_1500_PLAND UMD_FS_C2_1500_PLAND UMD_FS_C3_1500_PLAND
+1            0.08989814           0.05700402             0.557518
+2            0.08989814           0.05700402             0.557518
+3            0.08989814           0.05700402             0.557518
+4            0.08989814           0.05700402             0.557518
+5            0.08989814           0.05700402             0.557518
+6            0.08989814           0.05700402             0.557518
+  UMD_FS_C4_1500_PLAND UMD_FS_C5_1500_PLAND UMD_FS_C6_1500_PLAND
+1             9.252313             6.879824            0.5480796
+2             9.252313             6.879824            0.5480796
+3             9.252313             6.879824            0.5480796
+4             9.252313             6.879824            0.5480796
+5             9.252313             6.879824            0.5480796
+6             9.252313             6.879824            0.5480796
+  UMD_FS_C7_1500_PLAND UMD_FS_C8_1500_PLAND UMD_FS_C9_1500_PLAND YEAR TIME
+1            0.7444164             1.717596            0.2753948 2012    7
+2            0.7444164             1.717596            0.2753948 2012    7
+3            0.7444164             1.717596            0.2753948 2012    7
+4            0.7444164             1.717596            0.2753948 2012    7
+5            0.7444164             1.717596            0.2753948 2012    7
+6            0.7444164             1.717596            0.2753948 2012    7
+  TIME2 EFFORT_DISTANCE_KM NUMBER_OBSERVERS I.STATIONARY NLists expertise DAY
+1    49                  1                1            0      3         3 259
+2    49                  1                1            0      3         3 259
+3    49                  1                1            0      3         3 259
+4    49                  1                1            0      3         3 259
+5    49                  1                1            0      3         3 259
+6    49                  1                1            0      3         3 259
+> 
+> 
+> w <- which(colnames(pred_df)=="join")
+> pred_df_final <- pred_df[,-c(w)]
+> head(pred_df_final)
+  EFFORT_HRS     ELEV UMD_FS_C0_1500_PLAND UMD_FS_C1_1500_PLAND
+1       0.05 296.5478             1.006261            0.8550603
+2       0.10 296.5478             1.006261            0.8550603
+3       0.15 296.5478             1.006261            0.8550603
+4       0.20 296.5478             1.006261            0.8550603
+5       0.25 296.5478             1.006261            0.8550603
+6       0.30 296.5478             1.006261            0.8550603
+  UMD_FS_C10_1500_PLAND UMD_FS_C12_1500_PLAND UMD_FS_C13_1500_PLAND
+1              4.304738              70.50958              3.202318
+2              4.304738              70.50958              3.202318
+3              4.304738              70.50958              3.202318
+4              4.304738              70.50958              3.202318
+5              4.304738              70.50958              3.202318
+6              4.304738              70.50958              3.202318
+  UMD_FS_C16_1500_PLAND UMD_FS_C2_1500_PLAND UMD_FS_C3_1500_PLAND
+1            0.08989814           0.05700402             0.557518
+2            0.08989814           0.05700402             0.557518
+3            0.08989814           0.05700402             0.557518
+4            0.08989814           0.05700402             0.557518
+5            0.08989814           0.05700402             0.557518
+6            0.08989814           0.05700402             0.557518
+  UMD_FS_C4_1500_PLAND UMD_FS_C5_1500_PLAND UMD_FS_C6_1500_PLAND
+1             9.252313             6.879824            0.5480796
+2             9.252313             6.879824            0.5480796
+3             9.252313             6.879824            0.5480796
+4             9.252313             6.879824            0.5480796
+5             9.252313             6.879824            0.5480796
+6             9.252313             6.879824            0.5480796
+  UMD_FS_C7_1500_PLAND UMD_FS_C8_1500_PLAND UMD_FS_C9_1500_PLAND YEAR TIME
+1            0.7444164             1.717596            0.2753948 2012    7
+2            0.7444164             1.717596            0.2753948 2012    7
+3            0.7444164             1.717596            0.2753948 2012    7
+4            0.7444164             1.717596            0.2753948 2012    7
+5            0.7444164             1.717596            0.2753948 2012    7
+6            0.7444164             1.717596            0.2753948 2012    7
+  TIME2 EFFORT_DISTANCE_KM NUMBER_OBSERVERS I.STATIONARY NLists expertise DAY
+1    49                  1                1            0      3         3 259
+2    49                  1                1            0      3         3 259
+3    49                  1                1            0      3         3 259
+4    49                  1                1            0      3         3 259
+5    49                  1                1            0      3         3 259
+6    49                  1                1            0      3         3 259
+> 
+> 
+> 
+> 
+> create_prediction_dataframe <- function(srd_path, var_alter="DAY", min_var,<me <- function(srd_path, var_alter="DAY", min_var,                         max_var, by, DAY=120, mod<ar_alter="DAY", min_var, max_var, by, DAY=120, modi                        s.names=FALSE, ...){
++ 
++ 
++ r <- require(dplyr)
++ 
++ # read in spatial data frame
++ if(modis.names) spatial_covs <- spatial_srd_modis(srd_path=srd_path)
++ if(!modis.names) spatial_covs <- spatial_srd(srd_path=srd_path)
++ 
++ # calculate spatial averages
++ spatial_avg <- create_spatial_avg(spatial_covs)
++ spatial_avg_df <- as.data.frame(t(spatial_avg))
++ 
++ # add in standardised checklist variables
++ day_spatial_std <- add_standardised_covs(srd_data=spatial_avg_df, ...)
++ 
++ # add in DAY variable
++ day_spatial_std$DAY <- DAY
++ 
++ # remove the varying variable
++ w <- which(colnames(day_spatial_std)==var_alter)
++ std_var_slim <- day_spatial_std[,-c(w)]
++ 
++ # create a dataframe with a varying var_alter
++ var <- seq(min_var, max_var, by=by)
++ var_df <- data.frame(var=var)
++ colnames(var_df) <- var_alter
++ 
++ # join varying covariate with other standardised covariates
++ var_df$join <- 1
++ std_var_slim$join <- 1
++ 
++ if(r) pred_df <- left_join(var_df, std_var_slim, by="join")
++ if(!r) pred_df <- merge(var_df, std_var_slim, by="join", all.x=TRUE)
++ 
++ # remove join
++ w <- which(colnames(pred_df)=="join")
++ pred_df_final <- pred_df[,-c(w)]
++ 
++ return(pred_df_final)
++ }
+> 
+> srd_path <- paste0(data.folder, "BCR23_SRD2016x1_srd.RData")
+> pred_df <- create_prediction_dataframe(srd_path=srd_path, var_alter="EFFORT<ion_dataframe(srd_path=srd_path, var_alter="EFFORT_                        HRS", 
++    min_var=0.05, max_var=5, by=0.05, DAY=259, modis.names=lc_names)
+Error in if (modis.names) spatial_covs <- spatial_srd_modis(srd_path = srd_path) : 
+  argument is not interpretable as logical
+In addition: Warning message:
+In if (modis.names) spatial_covs <- spatial_srd_modis(srd_path = srd_path) :
+  the condition has length > 1 and only the first element will be used
+> 
+> 
+> 
+> pred_df <- create_prediction_dataframe(srd_path=srd_path, var_alter="EFFORT<ion_dataframe(srd_path=srd_path, var_alter="EFFORT_                        HRS", 
++    min_var=0.05, max_var=5, by=0.05, DAY=259, modis.names=lc_names, modis.n<5, by=0.05, DAY=259, modis.names=lc_names, modis.na                        mes=FALSE)
+Error in create_prediction_dataframe(srd_path = srd_path, var_alter = "EFFORT_HRS",  : 
+  formal argument "modis.names" matched by multiple actual arguments
+> 
+> srd_path <- paste0(data.folder, "BCR23_SRD2016x1_srd.RData")
+> pred_df <- create_prediction_dataframe(srd_path=srd_path, var_alter="EFFORT<ion_dataframe(srd_path=srd_path, var_alter="EFFORT_                        HRS", 
++    min_var=0.05, max_var=5, by=0.05, DAY=259, modis.names=FALSE)
+> head(pred_df)
+  EFFORT_HRS     ELEV UMD_FS_C0_1500_PLAND UMD_FS_C1_1500_PLAND
+1       0.05 296.5478             1.006261            0.8550603
+2       0.10 296.5478             1.006261            0.8550603
+3       0.15 296.5478             1.006261            0.8550603
+4       0.20 296.5478             1.006261            0.8550603
+5       0.25 296.5478             1.006261            0.8550603
+6       0.30 296.5478             1.006261            0.8550603
+  UMD_FS_C10_1500_PLAND UMD_FS_C12_1500_PLAND UMD_FS_C13_1500_PLAND
+1              4.304738              70.50958              3.202318
+2              4.304738              70.50958              3.202318
+3              4.304738              70.50958              3.202318
+4              4.304738              70.50958              3.202318
+5              4.304738              70.50958              3.202318
+6              4.304738              70.50958              3.202318
+  UMD_FS_C16_1500_PLAND UMD_FS_C2_1500_PLAND UMD_FS_C3_1500_PLAND
+1            0.08989814           0.05700402             0.557518
+2            0.08989814           0.05700402             0.557518
+3            0.08989814           0.05700402             0.557518
+4            0.08989814           0.05700402             0.557518
+5            0.08989814           0.05700402             0.557518
+6            0.08989814           0.05700402             0.557518
+  UMD_FS_C4_1500_PLAND UMD_FS_C5_1500_PLAND UMD_FS_C6_1500_PLAND
+1             9.252313             6.879824            0.5480796
+2             9.252313             6.879824            0.5480796
+3             9.252313             6.879824            0.5480796
+4             9.252313             6.879824            0.5480796
+5             9.252313             6.879824            0.5480796
+6             9.252313             6.879824            0.5480796
+  UMD_FS_C7_1500_PLAND UMD_FS_C8_1500_PLAND UMD_FS_C9_1500_PLAND YEAR TIME
+1            0.7444164             1.717596            0.2753948 2012    7
+2            0.7444164             1.717596            0.2753948 2012    7
+3            0.7444164             1.717596            0.2753948 2012    7
+4            0.7444164             1.717596            0.2753948 2012    7
+5            0.7444164             1.717596            0.2753948 2012    7
+6            0.7444164             1.717596            0.2753948 2012    7
+  TIME2 EFFORT_DISTANCE_KM NUMBER_OBSERVERS I.STATIONARY NLists expertise DAY
+1    49                  1                1            0      3         3 259
+2    49                  1                1            0      3         3 259
+3    49                  1                1            0      3         3 259
+4    49                  1                1            0      3         3 259
+5    49                  1                1            0      3         3 259
+6    49                  1                1            0      3         3 259
+> 
+> 
+> 
+> nrow(pred_df)
+[1] 100
+> 
+> pred_1hr <- filter(pred_df, EFFORT_HRS=1)
+Error: filter() takes unnamed arguments. Do you need `==`?
+> pred_1hr <- filter(pred_df, EFFORT_HRS==1)
+> pred_1hr
+  EFFORT_HRS     ELEV UMD_FS_C0_1500_PLAND UMD_FS_C1_1500_PLAND
+1          1 296.5478             1.006261            0.8550603
+  UMD_FS_C10_1500_PLAND UMD_FS_C12_1500_PLAND UMD_FS_C13_1500_PLAND
+1              4.304738              70.50958              3.202318
+  UMD_FS_C16_1500_PLAND UMD_FS_C2_1500_PLAND UMD_FS_C3_1500_PLAND
+1            0.08989814           0.05700402             0.557518
+  UMD_FS_C4_1500_PLAND UMD_FS_C5_1500_PLAND UMD_FS_C6_1500_PLAND
+1             9.252313             6.879824            0.5480796
+  UMD_FS_C7_1500_PLAND UMD_FS_C8_1500_PLAND UMD_FS_C9_1500_PLAND YEAR TIME
+1            0.7444164             1.717596            0.2753948 2012    7
+  TIME2 EFFORT_DISTANCE_KM NUMBER_OBSERVERS I.STATIONARY NLists expertise DAY
+1    49                  1                1            0      3         3 259
+> 
+> 
+> 
+> pred_df$EFFORT_HRS_sqrt <- sqrt(pred_df$EFFORT_HRS)
+> pred_1hr <- filter(pred_df, EFFORT_HRS==1)
+> pred_1hr
+  EFFORT_HRS     ELEV UMD_FS_C0_1500_PLAND UMD_FS_C1_1500_PLAND
+1          1 296.5478             1.006261            0.8550603
+  UMD_FS_C10_1500_PLAND UMD_FS_C12_1500_PLAND UMD_FS_C13_1500_PLAND
+1              4.304738              70.50958              3.202318
+  UMD_FS_C16_1500_PLAND UMD_FS_C2_1500_PLAND UMD_FS_C3_1500_PLAND
+1            0.08989814           0.05700402             0.557518
+  UMD_FS_C4_1500_PLAND UMD_FS_C5_1500_PLAND UMD_FS_C6_1500_PLAND
+1             9.252313             6.879824            0.5480796
+  UMD_FS_C7_1500_PLAND UMD_FS_C8_1500_PLAND UMD_FS_C9_1500_PLAND YEAR TIME
+1            0.7444164             1.717596            0.2753948 2012    7
+  TIME2 EFFORT_DISTANCE_KM NUMBER_OBSERVERS I.STATIONARY NLists expertise DAY
+1    49                  1                1            0      3         3 259
+  EFFORT_HRS_sqrt
+1               1
+> 
+> 
+>    pred_observers <- data.frame(OBSERVER_ID=obs_group)   
+> head(pred_observers)
+  OBSERVER_ID
+1        2505
+2        2690
+3        3031
+4        7565
+5       15930
+6       18439
+> 
+>    pred_group <- left_join(pred_observers, pred_1hr, by="join")
+Error: 'join' column not found in lhs, cannot join
+>    pred_observers$join <- 1
+>    pred_group <- left_join(pred_observers, pred_1hr, by="join")
+Error: 'join' column not found in lhs, cannot join
+> pred_1hr$join <- 1
+>    pred_group <- left_join(pred_observers, pred_1hr, by="join")
+> head(pred_group)
+  OBSERVER_ID join EFFORT_HRS     ELEV UMD_FS_C0_1500_PLAND
+1        2505    1          1 296.5478             1.006261
+2        2690    1          1 296.5478             1.006261
+3        3031    1          1 296.5478             1.006261
+4        7565    1          1 296.5478             1.006261
+5       15930    1          1 296.5478             1.006261
+6       18439    1          1 296.5478             1.006261
+  UMD_FS_C1_1500_PLAND UMD_FS_C10_1500_PLAND UMD_FS_C12_1500_PLAND
+1            0.8550603              4.304738              70.50958
+2            0.8550603              4.304738              70.50958
+3            0.8550603              4.304738              70.50958
+4            0.8550603              4.304738              70.50958
+5            0.8550603              4.304738              70.50958
+6            0.8550603              4.304738              70.50958
+  UMD_FS_C13_1500_PLAND UMD_FS_C16_1500_PLAND UMD_FS_C2_1500_PLAND
+1              3.202318            0.08989814           0.05700402
+2              3.202318            0.08989814           0.05700402
+3              3.202318            0.08989814           0.05700402
+4              3.202318            0.08989814           0.05700402
+5              3.202318            0.08989814           0.05700402
+6              3.202318            0.08989814           0.05700402
+  UMD_FS_C3_1500_PLAND UMD_FS_C4_1500_PLAND UMD_FS_C5_1500_PLAND
+1             0.557518             9.252313             6.879824
+2             0.557518             9.252313             6.879824
+3             0.557518             9.252313             6.879824
+4             0.557518             9.252313             6.879824
+5             0.557518             9.252313             6.879824
+6             0.557518             9.252313             6.879824
+  UMD_FS_C6_1500_PLAND UMD_FS_C7_1500_PLAND UMD_FS_C8_1500_PLAND
+1            0.5480796            0.7444164             1.717596
+2            0.5480796            0.7444164             1.717596
+3            0.5480796            0.7444164             1.717596
+4            0.5480796            0.7444164             1.717596
+5            0.5480796            0.7444164             1.717596
+6            0.5480796            0.7444164             1.717596
+  UMD_FS_C9_1500_PLAND YEAR TIME TIME2 EFFORT_DISTANCE_KM NUMBER_OBSERVERS
+1            0.2753948 2012    7    49                  1                1
+2            0.2753948 2012    7    49                  1                1
+3            0.2753948 2012    7    49                  1                1
+4            0.2753948 2012    7    49                  1                1
+5            0.2753948 2012    7    49                  1                1
+6            0.2753948 2012    7    49                  1                1
+  I.STATIONARY NLists expertise DAY EFFORT_HRS_sqrt
+1            0      3         3 259               1
+2            0      3         3 259               1
+3            0      3         3 259               1
+4            0      3         3 259               1
+5            0      3         3 259               1
+6            0      3         3 259               1
+> 
+>    p_group <- predict(m_group, newdata=pred_group)
+Error in eval(expr, envir, enclos) : object 'hab_div' not found
+In addition: Warning message:
+In predict.gam(object, newdata = newdata, type = type, se.fit = se.fit,  :
+  not all required variables have been supplied in  newdata!
+
+> 
+> 
+> names(pred_group)
+ [1] "OBSERVER_ID"           "join"                  "EFFORT_HRS"           
+ [4] "ELEV"                  "UMD_FS_C0_1500_PLAND"  "UMD_FS_C1_1500_PLAND" 
+ [7] "UMD_FS_C10_1500_PLAND" "UMD_FS_C12_1500_PLAND" "UMD_FS_C13_1500_PLAND"
+[10] "UMD_FS_C16_1500_PLAND" "UMD_FS_C2_1500_PLAND"  "UMD_FS_C3_1500_PLAND" 
+[13] "UMD_FS_C4_1500_PLAND"  "UMD_FS_C5_1500_PLAND"  "UMD_FS_C6_1500_PLAND" 
+[16] "UMD_FS_C7_1500_PLAND"  "UMD_FS_C8_1500_PLAND"  "UMD_FS_C9_1500_PLAND" 
+[19] "YEAR"                  "TIME"                  "TIME2"                
+[22] "EFFORT_DISTANCE_KM"    "NUMBER_OBSERVERS"      "I.STATIONARY"         
+[25] "NLists"                "expertise"             "DAY"                  
+[28] "EFFORT_HRS_sqrt"      
+> 
+> 
+>    pred_observers$OBSERVER_ID <- factor(as.character(pred_observers$OBSERVE<R_ID <- factor(as.character(pred_observers$OBSERVER                        _ID), levels=levels(sub_d<r(pred_observers$OBSERVER_ID), levels=levels(sub_da                        t$OBSERVER_ID))
+>    pred_group <- left_join(pred_observers, pred_1hr, by="join")
+> head(pred_group)
+  OBSERVER_ID join EFFORT_HRS     ELEV UMD_FS_C0_1500_PLAND
+1        2505    1          1 296.5478             1.006261
+2        2690    1          1 296.5478             1.006261
+3        3031    1          1 296.5478             1.006261
+4        7565    1          1 296.5478             1.006261
+5       15930    1          1 296.5478             1.006261
+6       18439    1          1 296.5478             1.006261
+  UMD_FS_C1_1500_PLAND UMD_FS_C10_1500_PLAND UMD_FS_C12_1500_PLAND
+1            0.8550603              4.304738              70.50958
+2            0.8550603              4.304738              70.50958
+3            0.8550603              4.304738              70.50958
+4            0.8550603              4.304738              70.50958
+5            0.8550603              4.304738              70.50958
+6            0.8550603              4.304738              70.50958
+  UMD_FS_C13_1500_PLAND UMD_FS_C16_1500_PLAND UMD_FS_C2_1500_PLAND
+1              3.202318            0.08989814           0.05700402
+2              3.202318            0.08989814           0.05700402
+3              3.202318            0.08989814           0.05700402
+4              3.202318            0.08989814           0.05700402
+5              3.202318            0.08989814           0.05700402
+6              3.202318            0.08989814           0.05700402
+  UMD_FS_C3_1500_PLAND UMD_FS_C4_1500_PLAND UMD_FS_C5_1500_PLAND
+1             0.557518             9.252313             6.879824
+2             0.557518             9.252313             6.879824
+3             0.557518             9.252313             6.879824
+4             0.557518             9.252313             6.879824
+5             0.557518             9.252313             6.879824
+6             0.557518             9.252313             6.879824
+  UMD_FS_C6_1500_PLAND UMD_FS_C7_1500_PLAND UMD_FS_C8_1500_PLAND
+1            0.5480796            0.7444164             1.717596
+2            0.5480796            0.7444164             1.717596
+3            0.5480796            0.7444164             1.717596
+4            0.5480796            0.7444164             1.717596
+5            0.5480796            0.7444164             1.717596
+6            0.5480796            0.7444164             1.717596
+  UMD_FS_C9_1500_PLAND YEAR TIME TIME2 EFFORT_DISTANCE_KM NUMBER_OBSERVERS
+1            0.2753948 2012    7    49                  1                1
+2            0.2753948 2012    7    49                  1                1
+3            0.2753948 2012    7    49                  1                1
+4            0.2753948 2012    7    49                  1                1
+5            0.2753948 2012    7    49                  1                1
+6            0.2753948 2012    7    49                  1                1
+  I.STATIONARY NLists expertise DAY EFFORT_HRS_sqrt
+1            0      3         3 259               1
+2            0      3         3 259               1
+3            0      3         3 259               1
+4            0      3         3 259               1
+5            0      3         3 259               1
+6            0      3         3 259               1
+> 
+> 
+> 
+> 
+>    p_group <- predict(m_group, newdata=pred_group)
+Error in eval(expr, envir, enclos) : object 'hab_div' not found
+In addition: Warning message:
+In predict.gam(object, newdata = newdata, type = type, se.fit = se.fit,  :
+  not all required variables have been supplied in  newdata!
+
+> pred_df$hab_div <- apply(pred_df[,lc_names]/100, 1, gini_simpson)
+> pred_1hr <- filter(pred_df, EFFORT_HRS==1)
+> pred_1hr$join <- 1
+>    pred_group <- left_join(pred_observers, pred_1hr, by="join")
+>    p_group <- predict(m_group, newdata=pred_group)
+> head(p_group)
+       1        2        3        4        5        6 
+3.061482 2.854699 2.898992 2.502745 2.548407 3.388177 
+> 
+> 
+>    p_group <- predict(m_group, newdata=pred_group, type="link", se.fit=TRUE<roup, newdata=pred_group, type="link", se.fit=TRUE)                        
+> names(p_group)
+[1] "fit"    "se.fit"
+> 
+> 
+> 
+>    pred_obs <- cbind(OBSERVER_ID=pred_group$OBSERVER_ID, fit=p_group$fit, s<RVER_ID=pred_group$OBSERVER_ID, fit=p_group$fit, se                        =p_group$se.fit)
+> head(pred_obs)
+  OBSERVER_ID      fit         se
+1           1 3.061482 0.31327530
+2           2 2.854699 0.07703118
+3           3 2.898992 0.10881832
+4           4 2.502745 0.08219286
+5           5 2.548407 0.13047057
+6           6 3.388177 0.02911394
+> 
+> 
+>    pred_obs <- cbind(OBSERVER_ID=pred_group$OBSERVER_ID, fit=p_group$fit, s<RVER_ID=pred_group$OBSERVER_ID, fit=p_group$fit, se                        =p_group$se.fit)
+>    pred_obs$est <- exp(pred_obs$fit)
+Error in pred_obs$fit : $ operator is invalid for atomic vectors
+>    pred_obs$lcl <- exp(pred_obs$fit - 1.96*pred_obs$se.fit)
+Error in pred_obs$fit : $ operator is invalid for atomic vectors
+>    pred_obs$ucl <- exp(pred_obs$fit + 1.96*pred_obs$se.fit)
+Error in pred_obs$fit : $ operator is invalid for atomic vectors
+>    pred_obs <- cbind(OBSERVER_ID=pred_group$OBSERVER_ID, fit=p_group$fit, s<RVER_ID=pred_group$OBSERVER_ID, fit=p_group$fit, se                        =p_group$se.fit)
+> head(pred_obs)
+  OBSERVER_ID      fit         se
+1           1 3.061482 0.31327530
+2           2 2.854699 0.07703118
+3           3 2.898992 0.10881832
+4           4 2.502745 0.08219286
+5           5 2.548407 0.13047057
+6           6 3.388177 0.02911394
+> 
+> 
+>    pred_obs$est <- exp(pred_obs$fit)
+Error in pred_obs$fit : $ operator is invalid for atomic vectors
+>    pred_obs <- data.frame(OBSERVER_ID=pred_group$OBSERVER_ID, fit=p_group$f<(OBSERVER_ID=pred_group$OBSERVER_ID, fit=p_group$fi                        t, se=p_group$se.fit)
+>    pred_obs$est <- exp(pred_obs$fit)
+>    pred_obs$lcl <- exp(pred_obs$fit - 1.96*pred_obs$se.fit)
+Error: dims [product 290] do not match the length of object [0]
+>    pred_obs$ucl <- exp(pred_obs$fit + 1.96*pred_obs$se.fit)
+Error: dims [product 290] do not match the length of object [0]
+> 
+> length(pred.obs$fit)
+Error: object 'pred.obs' not found
+> length(pred_obs$fit)
+[1] 290
+> 
+> 
+> length(pred_obs$se)
+[1] 290
+>    pred_obs$lcl <- exp(pred_obs$fit - 1.96*pred_obs$se)
+>    pred_obs$ucl <- exp(pred_obs$fit + 1.96*pred_obs$se)
+> head(pred_obs)
+  OBSERVER_ID      fit         se      est       lcl      ucl
+1        2505 3.061482 0.31327530 21.35919 11.558979 39.46845
+2        2690 2.854699 0.07703118 17.36920 14.935153 20.19995
+3        3031 2.898992 0.10881832 18.15583 14.668582 22.47213
+4        7565 2.502745 0.08219286 12.21599 10.398353 14.35134
+5       15930 2.548407 0.13047057 12.78672  9.901486 16.51269
+6       18439 3.388177 0.02911394 29.61192 27.969474 31.35082
+> 
+> 
+> 

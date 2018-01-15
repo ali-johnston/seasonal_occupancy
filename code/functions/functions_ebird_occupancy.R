@@ -337,6 +337,7 @@ RetainRangeCountsPerLocObsvrWeek <- function(InputData, MinNPerSiteObsrvr=1, Max
    #Now, divide the data into two subsets based on whether we need to remove excess lists.
    DataSubset_EnoughLists <- InputData[InputData$NLists <= MaxNPerSiteObsrvr,]
    DataSubset_ExcessLists <- InputData[InputData$NLists > MaxNPerSiteObsrvr,]
+
    #
    #For the subset that needs trimming, add a column of random numbers to be converted 
    # into ranks, and then sort the original data by a factor-coded version of the location

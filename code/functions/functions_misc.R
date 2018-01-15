@@ -211,17 +211,62 @@ create_cyclic_bases <- function(df=10, min_var, max_var, col_prefix="sm", var_na
 #####################################################################
 ###  FUNCTION TO ADD FORTNIGHT CATEGORY
 
-add_week_cat <- function(day){
+add_week_cat <- function(day, nweek=2){
 
-	week_cat <- ceiling(day/14)
-	week_cat <- ifelse(week_cat>26, 26, week_cat)
+	ndays <- nweek*7
+
+	week_cat <- ceiling(day/ndays)
+
+	max_weeks <- 52/nweek
+	week_cat <- ifelse(week_cat>max_weeks, max_weeks, week_cat)
 
 	return(week_cat)
 }
 
 
 
+#####################################################################
+###  FUNCTION TO ADD A PRETTY YEAR AXIS TO AN ANNUAL PLOT
+
+add_year_axis <- function(label.size=0.7, week=FALSE){
+	month1 <- as.POSIXlt(paste0("2016-",1:12, "-02"))
+	day1 <- c(month1$yday, 366)
+
+	if(week) day1 <- day1/7
+
+	month15 <- as.POSIXlt(paste0("2015-", 1:12, "-16"))
+	day15 <- month15$yday
+
+	if(week) day15 <- day15/7
+
+	axis(side=1, at=day1, labels=rep("", 13))
+	axis(side=1, tick=FALSE, at=day15, padj=-1, cex.axis=label.size,
+	labels=c("J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"))
+}
 
 
+
+#####################################################################
+###  CHANGE NAMES OF MODIS LANDCOVER VARIABLES
+
+update_modis_names <- function(dnames){
+
+	dnames <- sub( "UMD_FS_C0_1500", "Water", dnames)
+	dnames <- sub( "UMD_FS_C1_1500", "Evergreen_needle", dnames)
+	dnames <- sub( "UMD_FS_C2_1500", "Evergreen_broad", dnames)
+	dnames <- sub( "UMD_FS_C3_1500", "Deciduous_needle", dnames)		
+	dnames <- sub( "UMD_FS_C4_1500", "Deciduous_broad", dnames)
+	dnames <- sub( "UMD_FS_C5_1500", "Mixed_forest", dnames)
+	dnames <- sub( "UMD_FS_C6_1500", "Closed_shrubland", dnames)
+	dnames <- sub( "UMD_FS_C7_1500", "Open_shrubland", dnames)
+	dnames <- sub( "UMD_FS_C8_1500", "Woody_savannas", dnames)		
+	dnames <- sub( "UMD_FS_C9_1500", "Savannas", dnames)	
+	dnames <- sub( "UMD_FS_C10_1500", "Grasslands", dnames)
+	dnames <- sub( "UMD_FS_C12_1500", "Croplands", dnames)
+	dnames <- sub( "UMD_FS_C13_1500", "Urban_Built", dnames)
+	dnames <- sub( "UMD_FS_C16_1500", "Barren", dnames)	
+
+	return(dnames)
+}
 
 

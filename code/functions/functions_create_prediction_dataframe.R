@@ -13,7 +13,7 @@
 #####################################################################
 ###  READ IN BASIC SPATIAL PREDICTION DATASET
 
-spatial_srd <- function(srd_path){
+spatial_srd_modis <- function(srd_path){
 	load(srd_path)
 
 	spatial_covs <- srd$X
@@ -30,6 +30,23 @@ spatial_srd <- function(srd_path){
 		"Urban_Built", "Bare")
 
 	colnames(spatial_covs)[3:16] <- modis.umd.names
+
+	return(spatial_covs)
+}
+
+
+
+#####################################################################
+###  READ IN SPATIAL PREDICTION DATASET, BUT WITHOUT MODIS NAMES
+
+spatial_srd <- function(srd_path){
+	load(srd_path)
+
+	spatial_covs <- srd$X
+	spatial_covs$LONGITUDE <- srd$locs$x
+	spatial_covs$LATITUDE <- srd$locs$y
+
+	rm(srd)
 
 	return(spatial_covs)
 }
@@ -83,13 +100,14 @@ create_spatial_avg <- function(spatial_covs){
 #####################################################################
 ###  CREATE DATAFRAME VARYING IN A GIVEN VARIABLE
 
-create_prediction_dataframe <- function(srd_path, var_alter="DAY", min_var, max_var, by, DAY=120, ...){
+create_prediction_dataframe <- function(srd_path, var_alter="DAY", min_var, max_var, by, DAY=120, modis.names=FALSE, ...){
 
 
 	r <- require(dplyr)
 
 	# read in spatial data frame
-	spatial_covs <- spatial_srd(srd_path=srd_path)
+	if(modis.names) spatial_covs <- spatial_srd_modis(srd_path=srd_path)
+	if(!modis.names) spatial_covs <- spatial_srd(srd_path=srd_path)
 
 	# calculate spatial averages
 	spatial_avg <- create_spatial_avg(spatial_covs)
